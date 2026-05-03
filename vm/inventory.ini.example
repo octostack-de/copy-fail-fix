@@ -1,0 +1,13 @@
+# Ansible inventory template for vm/playbook.yml.
+#
+# Usage:
+#   cp inventory.ini.example inventory.ini
+#   # then fill in real hostnames / IPs
+#
+# inventory.ini is gitignored; this template is the committed reference.
+
+[ubuntu_2404]
+vm-name ansible_host=<vm-ip>   ansible_user=ubuntu
+
+[ubuntu_2404:vars]
+ansible_python_interpreter=/usr/bin/python3

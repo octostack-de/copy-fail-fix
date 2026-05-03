@@ -1,0 +1,86 @@
+---
+- name: Mitigate CVE-2026-31431 (copy.fail) on Ubuntu 24.04
+  hosts: all
+  become: true
+  vars:
+    af_alg_modules:
+      - algif_aead
+      - algif_hash
+      - algif_skcipher
+      - algif_rng
+      - af_alg
+  tasks:
+    - name: Verify target is Ubuntu 24.04
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_version == "24.04"
+        fail_msg: >-
+          This playbook targets Ubuntu 24.04 only
+          (found {{ ansible_distribution }} {{ ansible_distribution_version }}).
+
+    - name: Block AF_ALG family via modprobe install overrides
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/disable-af_alg.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # CVE-2026-31431 (copy.fail) mitigation
+          {% for m in af_alg_modules %}
+          install {{ m }} /bin/false
+          {% endfor %}
+
+    - name: Get currently loaded modules
+      ansible.builtin.command: lsmod
+      register: lsmod_out
+      changed_when: false
+
+    - name: Unload AF_ALG family (children before parent)
+      ansible.builtin.command: "modprobe -r {{ item }}"
+      loop: "{{ af_alg_modules }}"
+      when: item in lsmod_out.stdout
+      changed_when: true
+
+    - name: Refresh apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 600
+
+    - name: Derive kernel flavor from ansible_kernel (last "-" field)
+      ansible.builtin.set_fact:
+        kernel_flavor: "{{ ansible_kernel.split('-') | last }}"
+
+    - name: Show detected kernel flavor
+      ansible.builtin.debug:
+        msg: >-
+          ansible_kernel="{{ ansible_kernel }}", derived flavor="{{ kernel_flavor }}",
+          will install/upgrade meta package "linux-{{ kernel_flavor }}".
+
+    - name: Sanity-check derived flavor
+      ansible.builtin.assert:
+        that:
+          - kernel_flavor | length > 0
+          - kernel_flavor is match('^[a-z][a-z0-9-]*$')
+        fail_msg: >-
+          Could not derive a usable kernel flavor from ansible_kernel
+          "{{ ansible_kernel }}". Set kernel_flavor manually as an extra var,
+          e.g. -e kernel_flavor=generic.
+
+    - name: Install/upgrade kernel meta-package (pulls patched image if available)
+      ansible.builtin.apt:
+        name: "linux-{{ kernel_flavor }}"
+        state: latest
+      register: kernel_upgrade
+
+    - name: Check whether reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Notify about reboot requirement
+      ansible.builtin.debug:
+        msg: >-
+          Kernel package "linux-{{ kernel_flavor }}" was upgraded or a previous
+          upgrade is pending; reboot required to activate the patched kernel.
+      when: reboot_required.stat.exists
