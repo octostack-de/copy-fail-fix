@@ -1,6 +1,6 @@
 # CVE-2026-31431 (copy.fail) — kernel module mitigation
 
-Detect and runtime-mitigate the `algif_aead` exposure exploited by `copy.fail` on Linux hosts built with `CONFIG_CRYPTO_USER_API_AEAD=m`. Closes the userspace exploit path without requiring a kernel patch or reboot. Works on standalone Ubuntu 24.04 VMs and on Kubernetes nodes.
+Detect and runtime-mitigate the `algif_aead` exposure exploited by `copy.fail` on Linux hosts built with `CONFIG_CRYPTO_USER_API_AEAD=m`. Closes the userspace exploit path without requiring a kernel patch or reboot. Works on standalone Ubuntu 22.04 / 24.04 VMs and on Kubernetes nodes.
 
 ## What it does
 
@@ -17,7 +17,7 @@ The mitigation persists until the conf file is removed.
 |---|---|
 | `check-nodes.sh` | Probe nodes in a kubectl context; classify each as AT RISK / MITIGATED / NOT AT RISK |
 | `k8s/` | Kubernetes Job that applies the mitigation per node — see [k8s/README.md](k8s/README.md) |
-| `vm/` | Ansible playbook for standalone Ubuntu 24.04 VMs |
+| `vm/` | Ansible playbook for standalone Ubuntu 22.04 / 24.04 VMs |
 
 ## Quick start
 
@@ -34,7 +34,7 @@ Mitigate Kubernetes nodes:
 ./k8s/apply.sh
 ```
 
-Mitigate standalone Ubuntu 24.04 VMs:
+Mitigate standalone Ubuntu 22.04 / 24.04 VMs:
 
 ```sh
 cp vm/inventory.ini.example vm/inventory.ini   # then edit hostnames/IPs
@@ -50,7 +50,7 @@ ansible-playbook -i vm/inventory.ini vm/playbook.yml
 ## Requirements
 
 - Detect / Kubernetes: `kubectl`, plus `envsubst` (from GNU `gettext`) for `k8s/apply.sh`.
-- VMs: Ansible, with SSH to targets running Ubuntu 24.04.
+- VMs: Ansible, with SSH to targets running Ubuntu 22.04 or 24.04.
 
 ## License
 

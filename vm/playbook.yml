@@ -1,5 +1,5 @@
 ---
-- name: Mitigate CVE-2026-31431 (copy.fail) on Ubuntu 24.04
+- name: Mitigate CVE-2026-31431 (copy.fail) on Ubuntu 22.04 / 24.04
   hosts: all
   become: true
   vars:
@@ -9,14 +9,17 @@
       - algif_skcipher
       - algif_rng
       - af_alg
+    supported_ubuntu_versions:
+      - "22.04"
+      - "24.04"
   tasks:
-    - name: Verify target is Ubuntu 24.04
+    - name: Verify target is a supported Ubuntu LTS
       ansible.builtin.assert:
         that:
           - ansible_distribution == "Ubuntu"
-          - ansible_distribution_version == "24.04"
+          - ansible_distribution_version in supported_ubuntu_versions
         fail_msg: >-
-          This playbook targets Ubuntu 24.04 only
+          This playbook targets Ubuntu {{ supported_ubuntu_versions | join(' / ') }}
           (found {{ ansible_distribution }} {{ ansible_distribution_version }}).
 
     - name: Block AF_ALG family via modprobe install overrides
