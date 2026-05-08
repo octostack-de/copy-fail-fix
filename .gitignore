@@ -1,2 +1,3 @@
 vm/inventory.ini
-docs
+/docs
+.claude/
