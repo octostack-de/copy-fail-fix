@@ -28,10 +28,11 @@ Detect:
 ./check-nodes.sh ctx1 ctx2 …      # explicit kubeconfig contexts
 ```
 
-Mitigate Kubernetes nodes:
+Mitigate Kubernetes nodes (pick one):
 
 ```sh
-./k8s/apply.sh
+./k8s/apply-jobs.sh        # one-shot Job per node
+./k8s/apply-daemonset.sh   # DaemonSet, auto-covers new nodes
 ```
 
 Mitigate standalone Ubuntu 22.04 / 24.04 VMs:
@@ -49,7 +50,7 @@ ansible-playbook -i vm/inventory.ini vm/playbook.yml
 
 ## Requirements
 
-- Detect / Kubernetes: `kubectl`, plus `envsubst` (from GNU `gettext`) for `k8s/apply.sh`.
+- Detect / Kubernetes: `kubectl`, plus `envsubst` (from GNU `gettext`) for `k8s/apply-jobs.sh` (the DaemonSet path doesn't need it).
 - VMs: Ansible, with SSH to targets running Ubuntu 22.04 or 24.04.
 
 ## License

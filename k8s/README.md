@@ -21,15 +21,35 @@ Jobs are GC'd 5 minutes after completion (`ttlSecondsAfterFinished: 300`).
 
 ## Apply
 
+Two independent entry points; pick whichever fits the cluster's lifecycle.
+
+### Job-based (one-shot, per node)
+
 ```sh
-./k8s/apply.sh
+./k8s/apply-jobs.sh
 ```
 
-The script:
 1. Creates the `copy-fail-mitigation` namespace with PodSecurity labels set to `privileged` (needed because the pod runs `privileged: true` and `hostPID: true`).
 2. Generates and applies one Job per node, pinned via `nodeName`.
 3. Waits up to 120s per node and prints a per-node OK/FAILED summary.
 4. Exits non-zero if any node failed.
+
+Re-run after adding nodes; completed Jobs are GC'd 5 min after success (`ttlSecondsAfterFinished: 300`).
+
+### DaemonSet (auto-covers new nodes)
+
+```sh
+./k8s/apply-daemonset.sh
+```
+
+1. Applies the namespace and the DaemonSet.
+2. Waits for the rollout (up to 180s).
+3. Prints a per-node OK/FAILED summary based on pod readiness.
+4. Exits non-zero if any pod is not Ready.
+
+Each pod runs the mitigation in an init container, then idles in a `sleep infinity` main container. New nodes joining the cluster are mitigated automatically by the DaemonSet scheduler. Pod state reflects mitigation state: `Running` (`READY 1/1`) means the init container succeeded; `Init:Error` / `Init:CrashLoopBackOff` means it failed — check `kubectl -n copy-fail-mitigation logs <pod> -c mitigate`.
+
+The two scripts are independent and safe to use together; they write the same `disable-af_alg.conf`, so the writes are idempotent.
 
 ## Verify
 
@@ -50,7 +70,9 @@ Note: `../check-nodes.sh` (kernel-config probe) will still report `AT RISK` beca
 
 ## Re-run for new nodes
 
-Safe to re-run `apply.sh` any time. Existing completed Jobs are unaffected; only newly-added nodes get fresh Jobs.
+`apply-jobs.sh` is safe to re-run any time. Existing completed Jobs are unaffected; only newly-added nodes get fresh Jobs.
+
+`apply-daemonset.sh` does not need to be re-run after node additions — the DaemonSet controller schedules a pod on each new node automatically.
 
 ## Rollback
 
